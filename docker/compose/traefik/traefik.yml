@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+  traefik:
+    # The official v2 Traefik docker image
+    image: traefik:latest
+    container_name: traefik
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    ports:
+      # The HTTP port
+      - "80:80"
+      - "443:443"
+      # The Web UI (enabled by --api.insecure=true)
+      - "7000:8080"
+    environment:
+      - CF_API_EMAIL=$CF_API_EMAIL
+      - CF_API_KEY=$CF_API_KEY
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /home/mason/traefik/data/traefik.yml:/traefik.yml:ro
+      - /home/mason/traefik/data/acme.json:/acme.json
+      - /home/mason/traefik/data/config.yml:/config.yml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=http"
+      - "traefik.http.routers.traefik.rule=Host(`traefik-internal-dashboard.${YOUR_DOMAIN_NAME_WITH_SUBDOMAIN}`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=BASIC_AUTH_PASSWORD"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+      - "traefik.http.routers.traefik-secure.entrypoints=https"
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefik-internal-dashboard.${YOUR_DOMAIN_NAME_WITH_SUBDOMAIN}`)"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${YOUR_DOMAIN_NAME_WITH_SUBDOMAIN}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${YOUR_DOMAIN_NAME_WITH_SUBDOMAIN}"
+      - "traefik.http.routers.traefik-secure.tls.service=api@internal"
+
+networks:
+  proxy:
+    external: true

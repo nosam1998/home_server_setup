@@ -1,0 +1,24 @@
+version: "2.1"
+
+services:
+    openvpn:
+        image: linuxserver/openvpn-as:latest
+        container_name: openvpn
+        cap_add:
+            - NET_ADMIN
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=America/Los_Angeles
+            #   - INTERFACE=eth0 #optional
+        volumes:
+            - $HOST_VOLUME_PATH:/config
+        ports:
+            - 1943:943
+            - 19443:9443
+            - 11194:1194/udp
+        restart: unless-stopped
+        labels:
+            - traefik.http.routers.my-container.rule=Host(`example.com`)
+            # Tell Traefik to use the port 11194 to connect to `openvpn`
+            - traefik.http.services.openvpn.loadbalancer.server.port=${TRAEFIK_OVPN_PORT}
